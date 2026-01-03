@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>实时投票</title>
+</head>
+<body>
+
+<h2>实时投票示例</h2>
+
+<button onclick="vote(1)">选项 1</button>
+<button onclick="vote(2)">选项 2</button>
+<button onclick="vote(3)">选项 3</button>
+<button onclick="openVote()">开始投票</button>
+<button onclick="closeVote()">结束投票</button>
+
+
+<h3>当前结果：</h3>
+<ul id="result"></ul>
+
+<script>
+    let socket = new WebSocket("ws://localhost:8080/vote");
+
+    socket.onmessage = function (event) {
+        let data = JSON.parse(event.data);
+
+        if (data.type === "result") {
+            let ul = document.getElementById("result");
+            ul.innerHTML = "";
+            for (let key in data.result) {
+                let li = document.createElement("li");
+                li.innerText = "选项 " + key + " : " + data.result[key];
+                ul.appendChild(li);
+            }
+        }
+
+        if (data.type === "error") {
+            alert(data.msg);
+        }
+
+        if (data.type === "status") {
+            alert("投票状态：" + data.status);
+        }
+
+    };
+
+
+    function vote(optionId) {
+        socket.send(JSON.stringify({
+            type: "vote",
+            optionId: optionId
+        }));
+    }
+    function openVote() {
+        socket.send(JSON.stringify({
+            type: "control",
+            command: "open"
+        }));
+    }
+
+    function closeVote() {
+        socket.send(JSON.stringify({
+            type: "control",
+            command: "close"
+        }));
+    }
+
+</script>
+
+</body>
+</html>
