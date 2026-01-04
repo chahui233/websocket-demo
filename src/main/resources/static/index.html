@@ -11,57 +11,82 @@
 <button onclick="vote(1)">选项 1</button>
 <button onclick="vote(2)">选项 2</button>
 <button onclick="vote(3)">选项 3</button>
-<button onclick="openVote()">开始投票</button>
-<button onclick="closeVote()">结束投票</button>
+<button onclick="openVote()">开启投票</button>
+<button onclick="closeVote()">关闭投票</button>
 
 
 <h3>当前结果：</h3>
 <ul id="result"></ul>
 
 <script>
+    console.log("JS loaded");
+    function getRoomId() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("roomId") || "room1";
+    }
+    const roomId = getRoomId();
     let socket = new WebSocket("ws://localhost:8080/vote");
+    socket.onopen = function () {
+        console.log("WebSocket connected");
+        socket.send(JSON.stringify({
+            command: "join",
+            roomId: roomId
+        }));
+    };
+
+    socket.onerror = function (e) {
+        console.error("WebSocket error", e);
+    };
+
+    socket.onclose = function () {
+        console.log("WebSocket closed");
+    };
 
     socket.onmessage = function (event) {
-        let data = JSON.parse(event.data);
+        console.log("Received:", event.data);
 
-        if (data.type === "result") {
-            let ul = document.getElementById("result");
+        const data = JSON.parse(event.data);
+        if (data.status) {
+            alert("投票状态：" + data.status);
+        }
+
+        // 直接按 result 渲染（不再用 data.type）
+        if (data.result) {
+            const ul = document.getElementById("result");
             ul.innerHTML = "";
+
             for (let key in data.result) {
-                let li = document.createElement("li");
+                const li = document.createElement("li");
                 li.innerText = "选项 " + key + " : " + data.result[key];
                 ul.appendChild(li);
             }
         }
-
-        if (data.type === "error") {
-            alert(data.msg);
-        }
-
-        if (data.type === "status") {
-            alert("投票状态：" + data.status);
-        }
-
     };
 
 
-    function vote(optionId) {
-        socket.send(JSON.stringify({
-            type: "vote",
-            optionId: optionId
-        }));
+    function vote(option) {
+        console.log("vote clicked:", option);
+
+        const msg = {
+            command: "vote",
+            roomId: roomId,
+            option: option
+        };
+
+        console.log("sending:", msg);
+        socket.send(JSON.stringify(msg));
     }
     function openVote() {
         socket.send(JSON.stringify({
-            type: "control",
-            command: "open"
+            command: "open",
+            roomId: roomId
         }));
     }
 
     function closeVote() {
         socket.send(JSON.stringify({
-            type: "control",
-            command: "close"
+            command: "close",
+            roomId: roomId
         }));
     }
 

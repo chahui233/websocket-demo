@@ -5,7 +5,18 @@ public class VoteMessage {
     private String type;
     private Integer optionId;
     private String command;
+    private String roomId;
+    private int option;
 
+    public String getRoomId() {
+        return roomId;
+    }
+    public int getOption() {
+        return option;
+    }
+    public void setRoomId(String roomId) {
+        this.roomId = roomId;
+    }
     public String getType() {
         return type;
     }

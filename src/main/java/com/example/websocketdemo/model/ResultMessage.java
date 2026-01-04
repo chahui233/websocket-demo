@@ -4,19 +4,20 @@ import java.util.Map;
 
 public class ResultMessage {
 
-    private String type;
+    private String roomId;
     private Map<Integer, Integer> result;
 
-    public ResultMessage(String type, Map<Integer, Integer> result) {
-        this.type = type;
+    public ResultMessage(String roomId, Map<Integer, Integer> result) {
+        this.roomId = roomId;
         this.result = result;
     }
 
-    public String getType() {
-        return type;
+    public String getRoomId() {
+        return roomId;
     }
 
     public Map<Integer, Integer> getResult() {
         return result;
     }
 }
+

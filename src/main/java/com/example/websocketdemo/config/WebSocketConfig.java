@@ -8,9 +8,15 @@ import org.springframework.web.socket.config.annotation.*;
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
 
+    private final VoteWebSocketHandler voteWebSocketHandler;
+
+    public WebSocketConfig(VoteWebSocketHandler voteWebSocketHandler) {
+        this.voteWebSocketHandler = voteWebSocketHandler;
+    }
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(new VoteWebSocketHandler(), "/vote")
+        registry.addHandler(voteWebSocketHandler, "/vote")
                 .setAllowedOrigins("*");
     }
 }
