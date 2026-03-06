@@ -1,22 +1,66 @@
 package com.example.websocketdemo.service;
 
 import com.example.websocketdemo.model.VoteRoom;
-import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Service
 public class VoteService {
 
-    private final Map<String, VoteRoom> rooms = new ConcurrentHashMap<>();
+    private Map<String, VoteRoom> rooms = new ConcurrentHashMap<>();
 
-    public VoteRoom getRoom(String roomId) {
-        return rooms.computeIfAbsent(roomId, k -> new VoteRoom());
+    private VoteRoom getRoom(String roomId){
+
+        return rooms.computeIfAbsent(roomId,k->new VoteRoom());
+
     }
 
-    public void vote(String roomId, String voterId, int option) {
-        VoteRoom room = getRoom(roomId);
-        room.vote(voterId, option);
+    public boolean vote(String roomId,String userId,int option){
+
+        return getRoom(roomId).vote(userId,option);
+
     }
+
+    public void startVote(String roomId){
+
+        getRoom(roomId).startVote();
+
+    }
+
+    public void stopVote(String roomId){
+
+        getRoom(roomId).stopVote();
+
+    }
+
+    public Map<Integer,Integer> getResult(String roomId){
+
+        return getRoom(roomId).getResult();
+
+    }
+
+    public boolean isVoting(String roomId){
+
+        return getRoom(roomId).isVoting();
+
+    }
+
+    public void addUser(String roomId){
+
+        getRoom(roomId).addUser();
+
+    }
+
+    public void removeUser(String roomId){
+
+        getRoom(roomId).removeUser();
+
+    }
+
+    public int getOnline(String roomId){
+
+        return getRoom(roomId).getOnlineCount();
+
+    }
+
 }

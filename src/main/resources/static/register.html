@@ -1,0 +1,29 @@
+<h2>注册</h2>
+
+<input id="username">
+<input id="password" type="password">
+
+<button onclick="register()">注册</button>
+
+<script>
+
+    function register(){
+
+        fetch("/register",{
+            method:"POST",
+            headers:{'Content-Type':'application/x-www-form-urlencoded'},
+            body:"username="+username.value+"&password="+password.value
+        })
+            .then(r=>r.text())
+            .then(d=>{
+
+                if(d==="success"){
+                    alert("注册成功")
+                    location="login.html"
+                }
+
+            })
+
+    }
+
+</script>

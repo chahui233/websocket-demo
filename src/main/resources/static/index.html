@@ -1,96 +1,103 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html>
+
 <head>
     <meta charset="UTF-8">
-    <title>实时投票</title>
+    <title>实时投票系统</title>
 </head>
+
 <body>
 
-<h2>实时投票示例</h2>
+<h2>WebSocket 实时投票系统</h2>
 
-<button onclick="vote(1)">选项 1</button>
-<button onclick="vote(2)">选项 2</button>
-<button onclick="vote(3)">选项 3</button>
-<button onclick="openVote()">开启投票</button>
-<button onclick="closeVote()">关闭投票</button>
+房间号：
+<input id="room"/>
+<button onclick="enterRoom()">进入房间</button>
 
+<hr>
 
-<h3>当前结果：</h3>
-<ul id="result"></ul>
+<div id="main" style="display:none">
+
+    在线人数：
+    <span id="online">0</span>
+
+    <br><br>
+
+    <button onclick="startVote()">开始投票</button>
+    <button onclick="stopVote()">结束投票</button>
+
+    <br><br>
+
+    <button onclick="vote(1)">选项1</button>
+    <button onclick="vote(2)">选项2</button>
+    <button onclick="vote(3)">选项3</button>
+
+    <h3>投票结果</h3>
+
+    <div>选项1：<span id="c1">0</span></div>
+    <div>选项2：<span id="c2">0</span></div>
+    <div>选项3：<span id="c3">0</span></div>
+
+</div>
 
 <script>
-    console.log("JS loaded");
-    function getRoomId() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get("roomId") || "room1";
-    }
-    const roomId = getRoomId();
-    let socket = new WebSocket("ws://localhost:8080/vote");
-    socket.onopen = function () {
-        console.log("WebSocket connected");
-        socket.send(JSON.stringify({
-            command: "join",
-            roomId: roomId
-        }));
-    };
 
-    socket.onerror = function (e) {
-        console.error("WebSocket error", e);
-    };
+    let ws;
 
-    socket.onclose = function () {
-        console.log("WebSocket closed");
-    };
+    function enterRoom(){
 
-    socket.onmessage = function (event) {
-        console.log("Received:", event.data);
+        let room=document.getElementById("room").value;
 
-        const data = JSON.parse(event.data);
-        if (data.status) {
-            alert("投票状态：" + data.status);
-        }
+        ws=new WebSocket("ws://localhost:8080/ws?roomId="+room);
 
-        // 直接按 result 渲染（不再用 data.type）
-        if (data.result) {
-            const ul = document.getElementById("result");
-            ul.innerHTML = "";
+        document.getElementById("main").style.display="block";
 
-            for (let key in data.result) {
-                const li = document.createElement("li");
-                li.innerText = "选项 " + key + " : " + data.result[key];
-                ul.appendChild(li);
+        ws.onmessage=function(e){
+
+            if(e.data==="already"){
+                alert("你已经投过票了");
+                return;
             }
-        }
-    };
 
+            let data=JSON.parse(e.data);
 
-    function vote(option) {
-        console.log("vote clicked:", option);
+            document.getElementById("c1").innerText=data.result[1]||0;
+            document.getElementById("c2").innerText=data.result[2]||0;
+            document.getElementById("c3").innerText=data.result[3]||0;
 
-        const msg = {
-            command: "vote",
-            roomId: roomId,
-            option: option
+            document.getElementById("online").innerText=data.online;
+
         };
 
-        console.log("sending:", msg);
-        socket.send(JSON.stringify(msg));
-    }
-    function openVote() {
-        socket.send(JSON.stringify({
-            command: "open",
-            roomId: roomId
-        }));
     }
 
-    function closeVote() {
-        socket.send(JSON.stringify({
-            command: "close",
-            roomId: roomId
+    function vote(option){
+
+        ws.send(JSON.stringify({
+            command:"vote",
+            option:option
         }));
+
+    }
+
+    function startVote(){
+
+        ws.send(JSON.stringify({
+            command:"start"
+        }));
+
+    }
+
+    function stopVote(){
+
+        ws.send(JSON.stringify({
+            command:"stop"
+        }));
+
     }
 
 </script>
 
 </body>
+
 </html>

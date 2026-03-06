@@ -1,46 +1,73 @@
 package com.example.websocketdemo.model;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.*;
 
 public class VoteRoom {
 
-    private boolean open = false;
+    private Map<Integer,Integer> result = new HashMap<>();
 
-    private final Map<Integer, Integer> voteMap = new ConcurrentHashMap<>();
-    private final Set<String> votedSessions = ConcurrentHashMap.newKeySet();
+    private boolean voting = false;
 
-    public VoteRoom() {
-        voteMap.put(1, 0);
-        voteMap.put(2, 0);
-        voteMap.put(3, 0);
+    private Set<String> votedUsers = new HashSet<>();
+
+    private int onlineCount = 0;
+
+    public VoteRoom(){
+
+        result.put(1,0);
+        result.put(2,0);
+        result.put(3,0);
+
     }
 
-    public boolean isOpen() {
-        return open;
-    }
+    public boolean vote(String userId,int option){
 
-    public void open() {
-        this.open = true;
-    }
-
-    public void close() {
-        this.open = false;
-    }
-
-    public void vote(String sessionId, int option) {
-        if (!open) {
-            throw new IllegalStateException("投票未开启");
+        if(votedUsers.contains(userId)){
+            return false;
         }
-        if (votedSessions.add(sessionId)) {
-            voteMap.computeIfPresent(option, (k, v) -> v + 1);
-        }
+
+        votedUsers.add(userId);
+
+        result.put(option,result.get(option)+1);
+
+        return true;
+
     }
 
-    public Map<Integer, Integer> toResultMap() {
-        return voteMap;
+    public void startVote(){
+
+        voting=true;
+
+        votedUsers.clear();
+
+        result.put(1,0);
+        result.put(2,0);
+        result.put(3,0);
+
     }
+
+    public void stopVote(){
+        voting=false;
+    }
+
+    public Map<Integer,Integer> getResult(){
+        return result;
+    }
+
+    public boolean isVoting(){
+        return voting;
+    }
+
+    public void addUser(){
+        onlineCount++;
+    }
+
+    public void removeUser(){
+        if(onlineCount>0) onlineCount--;
+    }
+
+    public int getOnlineCount(){
+        return onlineCount;
+    }
+
 }

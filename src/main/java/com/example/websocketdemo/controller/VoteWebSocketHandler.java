@@ -1,128 +1,149 @@
 package com.example.websocketdemo.controller;
 
-import com.example.websocketdemo.model.ResultMessage;
-import com.example.websocketdemo.model.VoteMessage;
-import com.example.websocketdemo.model.VoteRoom;
+import com.example.websocketdemo.model.*;
 import com.example.websocketdemo.service.VoteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 
-@Component
 public class VoteWebSocketHandler extends TextWebSocketHandler {
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private VoteService voteService;
 
-    // 所有在线连接
-    private static final Set<WebSocketSession> sessions =
-            ConcurrentHashMap.newKeySet();
+    private ObjectMapper objectMapper = new ObjectMapper();
 
-    // session -> roomId
-    private static final Map<WebSocketSession, String> sessionRoomMap =
-            new ConcurrentHashMap<>();
+    private List<WebSocketSession> sessions = new ArrayList<>();
 
-    private final VoteService voteService;
-
-    public VoteWebSocketHandler(VoteService voteService) {
+    public VoteWebSocketHandler(VoteService voteService){
         this.voteService = voteService;
     }
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) {
+    public void afterConnectionEstablished(WebSocketSession session){
+
         sessions.add(session);
-        System.out.println("WebSocket connected: " + session.getId());
+
+        String roomId = getRoomId(session);
+
+        session.getAttributes().put("roomId",roomId);
+
+        voteService.addUser(roomId);
+
+        try{
+            broadcast(roomId);
+        }catch(Exception e){}
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        try {
-            System.out.println("收到消息：" + message.getPayload());
+    public void afterConnectionClosed(WebSocketSession session,CloseStatus status){
 
-            VoteMessage voteMessage =
-                    mapper.readValue(message.getPayload(), VoteMessage.class);
+        sessions.remove(session);
 
-            String command = voteMessage.getCommand();
-            String roomId = voteMessage.getRoomId();
+        String roomId=(String)session.getAttributes().get("roomId");
 
-            // 获取或创建房间
-            VoteRoom room = voteService.getRoom(roomId);
+        voteService.removeUser(roomId);
 
-            // 加入房间
-            if ("join".equals(command)) {
-                sessionRoomMap.put(session, roomId);
-                return;
-            }
+        try{
+            broadcast(roomId);
+        }catch(Exception e){}
+    }
 
-            // 开启投票
-            if ("open".equals(command)) {
-                room.open();
-                broadcastStatus(roomId, "OPEN");
-                return;
-            }
+    @Override
+    protected void handleTextMessage(WebSocketSession session,TextMessage message) throws Exception{
 
-            // 关闭投票
-            if ("close".equals(command)) {
-                room.close();
-                broadcastStatus(roomId, "CLOSED");
-                return;
-            }
+        VoteMessage voteMessage = objectMapper.readValue(
+                message.getPayload(),
+                VoteMessage.class
+        );
 
-            // 投票
-            if ("vote".equals(command)) {
-                if (!room.isOpen()) {
-                    session.sendMessage(new TextMessage(
-                            "{\"error\":\"投票尚未开启\"}"
-                    ));
+        String roomId = (String) session.getAttributes().get("roomId");
+
+        if("vote".equals(voteMessage.getCommand())){
+
+            if(voteService.isVoting(roomId)){
+
+                boolean success = voteService.vote(
+                        roomId,
+                        session.getId(),
+                        voteMessage.getOption()
+                );
+
+                if(!success){
+
+                    session.sendMessage(new TextMessage("already"));
+
                     return;
+
                 }
 
-                room.vote(session.getId(), voteMessage.getOption());
-
-                ResultMessage result =
-                        new ResultMessage(roomId, room.toResultMap());
-
-                broadcastResult(roomId, result);
             }
 
-        } catch (Exception e) {
-            // ❗关键：任何异常都不能让 WebSocket 断开
-            System.err.println("WebSocket 处理异常（连接未断开）");
-            e.printStackTrace();
         }
-    }
 
-    private void broadcastResult(String roomId, ResultMessage result) throws IOException {
-        String json = mapper.writeValueAsString(result);
+        if("start".equals(voteMessage.getCommand())){
 
-        for (WebSocketSession session : sessions) {
-            if (session.isOpen()
-                    && roomId.equals(sessionRoomMap.get(session))) {
-                session.sendMessage(new TextMessage(json));
+            if(!"admin".equals(session.getAttributes().get("role"))){
+                return;
             }
+
+            voteService.startVote(roomId);
         }
-    }
 
-    private void broadcastStatus(String roomId, String status) throws IOException {
-        String json = "{\"status\":\"" + status + "\"}";
-
-        for (WebSocketSession session : sessions) {
-            if (session.isOpen()
-                    && roomId.equals(sessionRoomMap.get(session))) {
-                session.sendMessage(new TextMessage(json));
+        if("stop".equals(voteMessage.getCommand())){
+            if(!"admin".equals(session.getAttributes().get("role"))){
+                return;
             }
+            voteService.stopVote(roomId);
+
         }
+
+        broadcast(roomId);
+
     }
 
-    @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        sessions.remove(session);
-        sessionRoomMap.remove(session);
-        System.out.println("WebSocket closed: " + session.getId());
+    private void broadcast(String roomId) throws Exception{
+
+        ResultMessage resultMessage = new ResultMessage(
+                roomId,
+                voteService.getResult(roomId),
+                voteService.isVoting(roomId),
+                voteService.getOnline(roomId)
+        );
+
+        String json = objectMapper.writeValueAsString(resultMessage);
+
+        for(WebSocketSession s:sessions){
+
+            if(s.isOpen()){
+
+                String r=(String)s.getAttributes().get("roomId");
+
+                if(roomId.equals(r)){
+
+                    s.sendMessage(new TextMessage(json));
+
+                }
+
+            }
+
+        }
+
     }
+
+    private String getRoomId(WebSocketSession session){
+
+        String query=session.getUri().getQuery();
+
+        if(query!=null && query.contains("roomId=")){
+
+            return query.split("=")[1];
+
+        }
+
+        return "default";
+
+    }
+
 }
