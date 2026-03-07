@@ -9,16 +9,16 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class VoteWebSocketHandler extends TextWebSocketHandler {
 
-    private VoteService voteService;
+    private final VoteService voteService;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private List<WebSocketSession> sessions = new ArrayList<>();
+    private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
     public VoteWebSocketHandler(VoteService voteService){
         this.voteService = voteService;
@@ -70,7 +70,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
                 boolean success = voteService.vote(
                         roomId,
-                        session.getId(),
+                        (String) session.getAttributes().get("username"),
                         voteMessage.getOption()
                 );
 
