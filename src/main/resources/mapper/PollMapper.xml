@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.websocketdemo.mapper.PollMapper">
+
+    <select id="findByRoomId" resultType="com.example.websocketdemo.model.Poll">
+        SELECT id, room_id AS roomId, title, description,
+               start_time AS startTime, end_time AS endTime, voting,
+               creator_user_id AS creatorUserId, deleted
+        FROM poll
+        WHERE room_id = #{roomId}
+    </select>
+    <select id="findActiveByRoomId" resultType="com.example.websocketdemo.model.Poll">
+        SELECT id, room_id AS roomId, title, description,
+               start_time AS startTime, end_time AS endTime, voting,
+               creator_user_id AS creatorUserId, deleted
+        FROM poll
+        WHERE room_id = #{roomId}
+          AND deleted = 0
+    </select>
+
+    <select id="findDeletedByCreatorUserId" resultType="com.example.websocketdemo.model.Poll">
+        SELECT id, room_id AS roomId, title, description,
+               start_time AS startTime, end_time AS endTime, voting,
+               creator_user_id AS creatorUserId, deleted
+        FROM poll
+        WHERE creator_user_id = #{creatorUserId}
+          AND deleted = 1
+        ORDER BY end_time DESC, id DESC
+    </select>
+
+
+    <insert id="insertPoll" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO poll(room_id, title, description, voting, creator_user_id, deleted)
+        VALUES(#{roomId}, #{title}, #{description}, #{voting}, #{creatorUserId}, #{deleted})
+    </insert>
+
+    <update id="updateVotingStatus">
+        UPDATE poll
+        SET voting = #{voting}
+        WHERE id = #{pollId}
+    </update>
+
+    <update id="updateStartTime">
+        UPDATE poll
+        SET start_time = NOW(), end_time = NULL
+        WHERE id = #{pollId}
+    </update>
+
+    <update id="updateEndTime">
+        UPDATE poll
+        SET end_time = NOW()
+        WHERE id = #{pollId}
+    </update>
+
+    <update id="markDeleted">
+        UPDATE poll
+        SET deleted = 1
+        WHERE id = #{pollId}
+    </update>
+
+</mapper>

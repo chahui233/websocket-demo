@@ -1,20 +1,24 @@
 package com.example.websocketdemo.controller;
 
-import com.example.websocketdemo.model.*;
+import com.example.websocketdemo.model.ResultMessage;
+import com.example.websocketdemo.model.VoteMessage;
 import com.example.websocketdemo.service.VoteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.web.socket.*;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.util.*;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class VoteWebSocketHandler extends TextWebSocketHandler {
 
-    private VoteService voteService;
+    private final VoteService voteService;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private List<WebSocketSession> sessions = new ArrayList<>();
+    private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
     public VoteWebSocketHandler(VoteService voteService){
         this.voteService = voteService;
@@ -23,14 +27,20 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionEstablished(WebSocketSession session){
 
+        String roomId = getParam(session, "roomId", "");
+
+        if (!voteService.roomExistsActive(roomId)) {
+            try {
+                session.sendMessage(new TextMessage("notfound"));
+                session.close();
+            } catch (Exception ignored) {
+            }
+            return;
+        }
+
         sessions.add(session);
 
-        String roomId = getParam(session, "roomId", "default");
-        String role = getParam(session, "role", "user");
-
-
         session.getAttributes().put("roomId",roomId);
-        session.getAttributes().put("role", role);
 
         voteService.addUser(roomId);
 
@@ -45,6 +55,9 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
         sessions.remove(session);
 
         String roomId=(String)session.getAttributes().get("roomId");
+        if (roomId == null) {
+            return;
+        }
 
         voteService.removeUser(roomId);
 
@@ -62,6 +75,8 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
         );
 
         String roomId = (String) session.getAttributes().get("roomId");
+        String username = (String) session.getAttributes().get("username");
+        String role = (String) session.getAttributes().get("role");
 
         if("vote".equals(voteMessage.getCommand())){
 
@@ -69,7 +84,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
                 boolean success = voteService.vote(
                         roomId,
-                        session.getId(),
+                        username,
                         voteMessage.getOption()
                 );
 
@@ -87,20 +102,18 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
         if("start".equals(voteMessage.getCommand())){
 
-            if(!"admin".equals(session.getAttributes().get("role"))){
+            if(!voteService.startVote(roomId, username, role)){
                 session.sendMessage(new TextMessage("forbidden"));
                 return;
             }
 
-            voteService.startVote(roomId);
         }
 
         if("stop".equals(voteMessage.getCommand())){
-            if(!"admin".equals(session.getAttributes().get("role"))){
+            if(!voteService.stopVote(roomId, username, role)){
                 session.sendMessage(new TextMessage("forbidden"));
                 return;
             }
-            voteService.stopVote(roomId);
 
         }
 

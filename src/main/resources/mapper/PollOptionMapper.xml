@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.websocketdemo.mapper.PollOptionMapper">
+
+    <insert id="insertOption" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO poll_option(poll_id, option_no, content, vote_count)
+        VALUES(#{pollId}, #{optionNo}, #{content}, #{voteCount})
+    </insert>
+
+    <select id="findByPollIdAndOptionNo" resultType="com.example.websocketdemo.model.PollOption">
+        SELECT id,
+               poll_id AS pollId,
+               option_no AS optionNo,
+               content,
+               vote_count AS voteCount
+        FROM poll_option
+        WHERE poll_id = #{pollId}
+          AND option_no = #{optionNo}
+    </select>
+
+    <select id="findByPollId" resultType="com.example.websocketdemo.model.PollOption">
+        SELECT id,
+               poll_id AS pollId,
+               option_no AS optionNo,
+               content,
+               vote_count AS voteCount
+        FROM poll_option
+        WHERE poll_id = #{pollId}
+    </select>
+
+    <update id="incrementVoteCount">
+        UPDATE poll_option
+        SET vote_count = vote_count + 1
+        WHERE id = #{optionId}
+    </update>
+
+    <update id="resetVoteCountByPollId">
+        UPDATE poll_option
+        SET vote_count = 0
+        WHERE poll_id = #{pollId}
+    </update>
+
+</mapper>

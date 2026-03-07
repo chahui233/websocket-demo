@@ -1,84 +1,320 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>实时投票系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(145deg, #f8faff, #eef2ff 40%, #edf9ff);
+            color: #111827;
+        }
+        .container { max-width: 980px; margin: 0 auto; padding: 24px 18px 32px; }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+        .title { margin: 0; font-size: 28px; }
+        .user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            padding: 8px 12px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .06);
+            font-size: 14px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, .08);
+            margin-bottom: 16px;
+        }
+        .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        input, textarea {
+            height: 40px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 0 12px;
+            min-width: 220px;
+            font-size: 14px;
+            outline: none;
+        }
+        textarea { min-height: 96px; height: auto; padding: 10px 12px; width: 100%; }
+        input:focus, textarea:focus { border-color: #4f46e5; box-shadow: 0 0 0 4px rgba(79,70,229,.12); }
+        button {
+            height: 40px;
+            border: 0;
+            border-radius: 10px;
+            padding: 0 16px;
+            background: #4f46e5;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button.secondary { background: #334155; }
+        button.option { background: #0ea5e9; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .meta-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; }
+        .label { color: #64748b; font-size: 13px; }
+        .value { margin-top: 4px; font-size: 20px; font-weight: 700; }
+        .status-open { color: #16a34a; }
+        .status-close { color: #ef4444; }
+        .results, .history-results { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+        .result-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; }
+        .result-title { font-size: 14px; color: #64748b; }
+        .result-count { font-size: 28px; font-weight: 700; margin-top: 6px; }
+        .history-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+        .muted { color: #64748b; font-size: 13px; }
+        @media (max-width: 640px) {
+            .title { font-size: 24px; }
+            .user { width: 100%; justify-content: space-between; }
+            .topbar { flex-direction: column; align-items: stretch; }
+            input { min-width: 0; width: 100%; }
+        }
+    </style>
 </head>
 
 <body>
+<div class="container">
+    <div class="topbar">
+        <h2 class="title">WebSocket 实时投票系统</h2>
+        <div class="user">
+            当前账号：<strong id="currentUser">未登录</strong>
+            <button class="secondary" onclick="logout()">注销</button>
+        </div>
+    </div>
 
-<h2>WebSocket 实时投票系统</h2>
+    <div class="card">
+        <div class="row">
+            <input id="room" placeholder="请输入房间号"/>
+            <button onclick="enterRoom()">进入房间</button>
+        </div>
+        <hr style="margin: 16px 0; border: 0; border-top: 1px solid #e5e7eb;" />
+        <div style="margin-bottom:8px; font-weight: 600;">创建房间</div>
+        <div class="row" style="margin-bottom:10px;">
+            <input id="createTitle" placeholder="请输入投票标题" style="flex:1"/>
+        </div>
+        <textarea id="createOptions" placeholder="请输入投票选项，每行一个（至少2项）"></textarea>
+        <div style="margin-top:10px;">
+            <button onclick="createRoom()">创建房间</button>
+            <span id="newRoomTip" class="muted" style="margin-left:8px;"></span>
+        </div>
+    </div>
 
-房间号：
-<input id="room"/>
-<button onclick="enterRoom()">进入房间</button>
+    <div id="main" class="card" style="display:none">
+        <h3 id="roomTitle" style="margin-top:0"></h3>
+        <div class="meta">
+            <div class="meta-item">
+                <div class="label">在线人数</div>
+                <div class="value" id="online">0</div>
+            </div>
+            <div class="meta-item">
+                <div class="label">当前投票状态</div>
+                <div class="value status-close" id="voteStatus">投票已关闭</div>
+            </div>
+        </div>
 
-<hr>
+        <div class="row" style="margin-bottom: 12px;">
+            <button id="startBtn" onclick="startVote()">开始投票</button>
+            <button id="stopBtn" class="secondary" onclick="stopVote()">结束投票</button>
+        </div>
+        <div id="optionButtons" class="row" style="margin-bottom:12px;"></div>
+        <div id="results" class="results"></div>
+    </div>
 
-<div id="main" style="display:none">
-
-    在线人数：
-    <span id="online">0</span>
-
-    <br><br>
-
-    <button onclick="startVote()">开始投票</button>
-    <button onclick="stopVote()">结束投票</button>
-
-    <br><br>
-
-    <button onclick="vote(1)">选项1</button>
-    <button onclick="vote(2)">选项2</button>
-    <button onclick="vote(3)">选项3</button>
-
-    <h3>投票结果</h3>
-
-    <div>选项1：<span id="c1">0</span></div>
-    <div>选项2：<span id="c2">0</span></div>
-    <div>选项3：<span id="c3">0</span></div>
-
+    <div class="card">
+        <h3 style="margin-top:0">我发起的投票</h3>
+        <div id="myHistory" class="muted">暂无历史投票</div>
+    </div>
 </div>
 
 <script>
 
     let ws;
+    let currentOptions = [];
+    loadCurrentUser();
+    loadMyHistory();
 
+    function loadCurrentUser(){
+        fetch("/me")
+            .then(r=>{
+                if(!r.ok){
+                    throw new Error("unauthorized")
+                }
+                return r.json()
+            })
+            .then(user=>{
+                document.getElementById("currentUser").innerText = user.username;
+                sessionStorage.setItem("role", user.role);
+            })
+            .catch(()=>{
+                alert("请先登录后再进入投票页面");
+                location = "login.html";
+            })
+    }
+
+    function logout(){
+        fetch("/logout", {method: "POST"})
+            .then(r=>r.text())
+            .then(()=>{
+                sessionStorage.clear();
+                location = "login.html";
+            })
+    }
+    function createRoom(){
+        const title = document.getElementById("createTitle").value.trim();
+        const options = document.getElementById("createOptions").value;
+
+        fetch("/rooms", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({title, options})
+        })
+            .then(async r=>{
+                if(!r.ok){
+                    throw new Error(await r.text());
+                }
+                return r.json();
+            })
+            .then(data=>{
+                document.getElementById("room").value = data.roomId;
+                document.getElementById("newRoomTip").innerText = `创建成功，房间号：${data.roomId}`;
+                alert(`创建成功，房间号：${data.roomId}`);
+            })
+            .catch(e=> alert(e.message || "创建房间失败"));
+    }
     function enterRoom(){
 
-        let room=document.getElementById("room").value || "default";
-        let role=sessionStorage.getItem("role") || "user";
+        let room=document.getElementById("room").value.trim();
+        if(!room){
+            alert("请输入房间号");
+            return;
+        }
+
+        fetch(`/rooms/${encodeURIComponent(room)}`)
+            .then(async r=>{
+                if(r.status===404){
+                    alert("该房间不存在");
+                    throw new Error("not-found");
+                }
+                if(!r.ok){
+                    throw new Error(await r.text());
+                }
+                return r.json();
+            })
+            .then(roomDetail=>{
+                renderRoom(roomDetail);
+                connectWebSocket(room);
+            })
+            .catch(()=>{});
+    }
+    function connectWebSocket(room){
         const protocol = location.protocol === "https:" ? "wss" : "ws";
-        const wsUrl = `${protocol}://${location.host}/ws?roomId=${encodeURIComponent(room)}&role=${encodeURIComponent(role)}`;
+        const wsUrl = `${protocol}://${location.host}/ws?roomId=${encodeURIComponent(room)}`;
 
         ws=new WebSocket(wsUrl);
 
-        document.getElementById("main").style.display="block";
+        ws.onopen=function(){
+            document.getElementById("main").style.display="block";
+        }
+
+        ws.onerror=function(){
+            alert("WebSocket连接失败，请确认已登录");
+        }
 
         ws.onmessage=function(e){
 
             if(e.data==="already"){
-                alert("你已经投过票了");
+                alert("你已经投过票了，或当前选项无效");
                 return;
             }
             if(e.data==="forbidden"){
-                alert("只有管理员可以开始或结束投票");
+                alert("只有管理员或投票创建者可以开始或结束投票");
                 return;
             }
 
+            if(e.data==="notfound"){
+                alert("该房间不存在");
+                return;
+
+            }
             let data=JSON.parse(e.data);
-
-            document.getElementById("c1").innerText=data.result[1]||0;
-            document.getElementById("c2").innerText=data.result[2]||0;
-            document.getElementById("c3").innerText=data.result[3]||0;
-
-            document.getElementById("online").innerText=data.online;
+            updateResult(data);
 
         };
+    }
 
+    function renderRoom(roomDetail){
+        currentOptions = roomDetail.options || [];
+        document.getElementById("roomTitle").innerText = roomDetail.title;
+
+        const btnContainer = document.getElementById("optionButtons");
+        btnContainer.innerHTML = "";
+        const resultContainer = document.getElementById("results");
+        resultContainer.innerHTML = "";
+
+        currentOptions.forEach(item => {
+            const btn = document.createElement("button");
+            btn.className = "option";
+            btn.innerText = `投给${item.content}`;
+            btn.onclick = ()=> vote(item.optionNo);
+            btnContainer.appendChild(btn);
+
+            const box = document.createElement("div");
+            box.className = "result-box";
+            box.innerHTML = `<div class="result-title">${item.content}</div><div class="result-count" id="c${item.optionNo}">0</div>`;
+            resultContainer.appendChild(box);
+        });
+    }
+    function updateResult(data){
+        currentOptions.forEach(item => {
+            const target = document.getElementById(`c${item.optionNo}`);
+            if(target){
+                target.innerText = data.result[item.optionNo] || 0;
+            }
+        });
+        document.getElementById("online").innerText=data.online;
+
+        const status = document.getElementById("voteStatus");
+        if(data.voting){
+            status.innerText = "投票已开始";
+            status.classList.remove("status-close");
+            status.classList.add("status-open");
+            document.getElementById("startBtn").disabled = true;
+            document.getElementById("stopBtn").disabled = false;
+        }else{
+            status.innerText = "投票已关闭";
+            status.classList.remove("status-open");
+            status.classList.add("status-close");
+            document.getElementById("startBtn").disabled = false;
+            document.getElementById("stopBtn").disabled = true;
+            loadMyHistory();
+        }
     }
 
     function vote(option){
+        if(!ws){
+            alert("请先进入房间");
+            return;
+        }
 
         ws.send(JSON.stringify({
             command:"vote",
@@ -88,6 +324,10 @@
     }
 
     function startVote(){
+        if(!ws){
+            alert("请先进入房间");
+            return;
+        }
 
         ws.send(JSON.stringify({
             command:"start"
@@ -95,12 +335,36 @@
 
     }
 
-    function stopVote(){
+    function stopVote() {
+        if (!ws) {
+            alert("请先进入房间");
+            return;
+        }
 
         ws.send(JSON.stringify({
-            command:"stop"
+            command: "stop"
         }));
+    }
 
+    function loadMyHistory(){
+        fetch("/rooms/my-history")
+            .then(r=>r.ok?r.json():[])
+            .then(history=>{
+                const box = document.getElementById("myHistory");
+                if(!history || history.length===0){
+                    box.innerHTML = "暂无历史投票";
+                    return;
+                }
+
+                box.innerHTML = "";
+                history.forEach(item=>{
+                    const el = document.createElement("div");
+                    el.className = "history-card";
+                    const results = (item.result || []).map(o=>`<div class=\"result-box\"><div class=\"result-title\">${o.content}</div><div class=\"result-count\">${o.voteCount}</div></div>`).join("");
+                    el.innerHTML = `<div><strong>${item.title}</strong>（房间 ${item.roomId}）</div><div class=\"muted\">结束时间：${item.endTime || "-"}</div><div class=\"history-results\" style=\"margin-top:8px;\">${results}</div>`;
+                    box.appendChild(el);
+                })
+            })
     }
 
 </script>

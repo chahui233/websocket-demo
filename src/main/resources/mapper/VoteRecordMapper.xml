@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.websocketdemo.mapper.VoteRecordMapper">
+
+    <select id="findByPollIdAndUserId" resultType="com.example.websocketdemo.model.VoteRecord">
+        SELECT id,
+               poll_id AS pollId,
+               option_id AS optionId,
+               user_id AS userId,
+               voted_at AS votedAt
+        FROM vote_record
+        WHERE poll_id = #{pollId}
+          AND user_id = #{userId}
+    </select>
+
+    <insert id="insertVote" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO vote_record(poll_id, option_id, user_id)
+        VALUES(#{pollId}, #{optionId}, #{userId})
+    </insert>
+
+    <delete id="deleteByPollId">
+        DELETE FROM vote_record
+        WHERE poll_id = #{pollId}
+    </delete>
+
+</mapper>
