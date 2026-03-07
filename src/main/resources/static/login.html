@@ -20,6 +20,7 @@
                 if(d==="fail"){
                     alert("登录失败")
                 }else{
+                    sessionStorage.setItem("role", d)
                     location="index.html"
                 }
 

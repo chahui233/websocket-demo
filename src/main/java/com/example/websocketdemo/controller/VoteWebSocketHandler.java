@@ -1,12 +1,16 @@
 package com.example.websocketdemo.controller;
 
-import com.example.websocketdemo.model.*;
+import com.example.websocketdemo.model.ResultMessage;
+import com.example.websocketdemo.model.VoteMessage;
 import com.example.websocketdemo.service.VoteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.web.socket.*;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class VoteWebSocketHandler extends TextWebSocketHandler {
 
@@ -25,7 +29,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
         sessions.add(session);
 
-        String roomId = getRoomId(session);
+        String roomId = getParam(session, "roomId", "default");
 
         session.getAttributes().put("roomId",roomId);
 
@@ -37,7 +41,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session,CloseStatus status){
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status){
 
         sessions.remove(session);
 
@@ -85,6 +89,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
         if("start".equals(voteMessage.getCommand())){
 
             if(!"admin".equals(session.getAttributes().get("role"))){
+                session.sendMessage(new TextMessage("forbidden"));
                 return;
             }
 
@@ -93,6 +98,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
         if("stop".equals(voteMessage.getCommand())){
             if(!"admin".equals(session.getAttributes().get("role"))){
+                session.sendMessage(new TextMessage("forbidden"));
                 return;
             }
             voteService.stopVote(roomId);
@@ -132,17 +138,21 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
     }
 
-    private String getRoomId(WebSocketSession session){
+    private String getParam(WebSocketSession session, String key, String defaultValue){
 
         String query=session.getUri().getQuery();
 
-        if(query!=null && query.contains("roomId=")){
-
-            return query.split("=")[1];
-
+        if(query!=null){
+            String[] pairs = query.split("&");
+            for(String pair : pairs){
+                String[] kv = pair.split("=", 2);
+                if(kv.length == 2 && key.equals(kv[0])){
+                    return kv[1];
+                }
+            }
         }
 
-        return "default";
+        return defaultValue;
 
     }
 

@@ -5,7 +5,7 @@
 
 <mapper namespace="com.example.websocketdemo.mapper.UserMapper">
 
-    <select id="findByUsername" resultType="User">
+    <select id="findByUsername" resultType="com.example.websocketdemo.model.User">
         SELECT * FROM user WHERE username = #{username}
     </select>
 

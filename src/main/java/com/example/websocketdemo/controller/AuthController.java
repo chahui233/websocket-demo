@@ -4,7 +4,13 @@ import com.example.websocketdemo.model.User;
 import com.example.websocketdemo.service.UserService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 public class AuthController {
@@ -34,6 +40,20 @@ public class AuthController {
         }
 
         return "exist";
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(HttpSession session){
+        User user = (User) session.getAttribute("user");
+
+        if(user == null){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("unauthorized");
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "username", user.getUsername(),
+                "role", user.getRole()
+        ));
     }
 
 }

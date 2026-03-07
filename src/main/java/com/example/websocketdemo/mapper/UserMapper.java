@@ -1,6 +1,6 @@
 package com.example.websocketdemo.mapper;
 
-import com.example.websocketdemo.entity.User;
+import com.example.websocketdemo.model.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

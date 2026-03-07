@@ -8,6 +8,10 @@
 
 <body>
 
+<div style="position:absolute; top:12px; right:16px;">
+    当前账号：<strong id="currentUser">未登录</strong>
+</div>
+
 <h2>WebSocket 实时投票系统</h2>
 
 房间号：
@@ -44,18 +48,52 @@
 
     let ws;
 
+    loadCurrentUser();
+
+    function loadCurrentUser(){
+        fetch("/me")
+            .then(r=>{
+                if(!r.ok){
+                    throw new Error("unauthorized")
+                }
+                return r.json()
+            })
+            .then(user=>{
+                document.getElementById("currentUser").innerText = user.username;
+                sessionStorage.setItem("role", user.role);
+            })
+            .catch(()=>{
+                alert("请先登录后再进入投票页面");
+                location = "login.html";
+            })
+    }
+
     function enterRoom(){
 
-        let room=document.getElementById("room").value;
+        let room=document.getElementById("room").value || "default";
 
-        ws=new WebSocket("ws://localhost:8080/ws?roomId="+room);
+        const protocol = location.protocol === "https:" ? "wss" : "ws";
+        const wsUrl = `${protocol}://${location.host}/ws?roomId=${encodeURIComponent(room)}`;
 
-        document.getElementById("main").style.display="block";
+        ws=new WebSocket(wsUrl);
+
+        ws.onopen=function(){
+            document.getElementById("main").style.display="block";
+        }
+
+        ws.onerror=function(){
+            alert("WebSocket连接失败，请确认已登录");
+        }
 
         ws.onmessage=function(e){
 
             if(e.data==="already"){
                 alert("你已经投过票了");
+                return;
+            }
+
+            if(e.data==="forbidden"){
+                alert("只有管理员可以开始或结束投票");
                 return;
             }
 

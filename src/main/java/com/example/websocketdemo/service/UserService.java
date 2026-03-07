@@ -29,7 +29,7 @@ public class UserService {
             return false;
         }
 
-        userMapper.insert(user);
+        userMapper.insertUser(user);
 
         return true;
 
