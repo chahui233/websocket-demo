@@ -1,53 +1,147 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>实时投票系统</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(145deg, #f8faff, #eef2ff 40%, #edf9ff);
+            color: #111827;
+        }
+        .container { max-width: 980px; margin: 0 auto; padding: 24px 18px 32px; }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            gap: 12px;
+        }
+        .title { margin: 0; font-size: 28px; }
+        .user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            padding: 8px 12px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .06);
+            font-size: 14px;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 16px 36px rgba(15, 23, 42, .08);
+            margin-bottom: 16px;
+        }
+        .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        input {
+            height: 40px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 0 12px;
+            min-width: 220px;
+            font-size: 14px;
+            outline: none;
+        }
+        input:focus { border-color: #4f46e5; box-shadow: 0 0 0 4px rgba(79,70,229,.12); }
+        button {
+            height: 40px;
+            border: 0;
+            border-radius: 10px;
+            padding: 0 16px;
+            background: #4f46e5;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button.secondary { background: #334155; }
+        button.option { background: #0ea5e9; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .meta-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; }
+        .label { color: #64748b; font-size: 13px; }
+        .value { margin-top: 4px; font-size: 20px; font-weight: 700; }
+        .status-open { color: #16a34a; }
+        .status-close { color: #ef4444; }
+        .results { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .result-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; text-align: center; }
+        .result-title { font-size: 14px; color: #64748b; }
+        .result-count { font-size: 28px; font-weight: 700; margin-top: 6px; }
+        @media (max-width: 640px) {
+            .title { font-size: 24px; }
+            .results { grid-template-columns: 1fr; }
+            .user { width: 100%; justify-content: space-between; }
+            .topbar { flex-direction: column; align-items: stretch; }
+            input { min-width: 0; width: 100%; }
+        }
+    </style>
 </head>
 
 <body>
+<div class="container">
+    <div class="topbar">
+        <h2 class="title">WebSocket 实时投票系统</h2>
+        <div class="user">
+            当前账号：<strong id="currentUser">未登录</strong>
+            <button class="secondary" onclick="logout()">注销</button>
+        </div>
+    </div>
 
-<div style="position:absolute; top:12px; right:16px;">
-    当前账号：<strong id="currentUser">未登录</strong>
-    <button onclick="logout()">注销</button>
-</div>
+    <div class="card">
+        <div class="row">
+            <input id="room" placeholder="请输入房间号（默认 default）"/>
+            <button onclick="enterRoom()">进入房间</button>
+        </div>
+    </div>
 
-<h2>WebSocket 实时投票系统</h2>
+    <div id="main" class="card" style="display:none">
+        <div class="meta">
+            <div class="meta-item">
+                <div class="label">在线人数</div>
+                <div class="value" id="online">0</div>
+            </div>
+            <div class="meta-item">
+                <div class="label">当前投票状态</div>
+                <div class="value status-close" id="voteStatus">投票已关闭</div>
+            </div>
+        </div>
 
-房间号：
-<input id="room"/>
-<button onclick="enterRoom()">进入房间</button>
+        <div class="row" style="margin-bottom: 12px;">
+            <button id="startBtn" onclick="startVote()">开始投票</button>
+            <button id="stopBtn" class="secondary" onclick="stopVote()">结束投票</button>
+            <button class="option" onclick="vote(1)">投给选项1</button>
+            <button class="option" onclick="vote(2)">投给选项2</button>
+            <button class="option" onclick="vote(3)">投给选项3</button>
+        </div>
 
-<hr>
-
-<div id="main" style="display:none">
-
-    在线人数：
-    <span id="online">0</span>
-
-    <br><br>
-
-    当前投票状态：
-    <strong id="voteStatus">投票已关闭</strong>
-
-    <br><br>
-
-    <button id="startBtn" onclick="startVote()">开始投票</button>
-    <button id="stopBtn" onclick="stopVote()">结束投票</button>
-
-    <br><br>
-
-    <button onclick="vote(1)">选项1</button>
-    <button onclick="vote(2)">选项2</button>
-    <button onclick="vote(3)">选项3</button>
-
-    <h3>投票结果</h3>
-
-    <div>选项1：<span id="c1">0</span></div>
-    <div>选项2：<span id="c2">0</span></div>
-    <div>选项3：<span id="c3">0</span></div>
-
+        <div class="results">
+            <div class="result-box">
+                <div class="result-title">选项1</div>
+                <div class="result-count" id="c1">0</div>
+            </div>
+            <div class="result-box">
+                <div class="result-title">选项2</div>
+                <div class="result-count" id="c2">0</div>
+            </div>
+            <div class="result-box">
+                <div class="result-title">选项3</div>
+                <div class="result-count" id="c3">0</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -119,12 +213,17 @@
             document.getElementById("c3").innerText=data.result[3]||0;
             document.getElementById("online").innerText=data.online;
 
+            const status = document.getElementById("voteStatus");
             if(data.voting){
-                document.getElementById("voteStatus").innerText = "投票已开始";
+                status.innerText = "投票已开始";
+                status.classList.remove("status-close");
+                status.classList.add("status-open");
                 document.getElementById("startBtn").disabled = true;
                 document.getElementById("stopBtn").disabled = false;
             }else{
-                document.getElementById("voteStatus").innerText = "投票已关闭";
+                status.innerText = "投票已关闭";
+                status.classList.remove("status-open");
+                status.classList.add("status-close");
                 document.getElementById("startBtn").disabled = false;
                 document.getElementById("stopBtn").disabled = true;
             }
