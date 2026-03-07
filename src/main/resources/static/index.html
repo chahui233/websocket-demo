@@ -46,9 +46,12 @@
 
     function enterRoom(){
 
-        let room=document.getElementById("room").value;
+        let room=document.getElementById("room").value || "default";
+        let role=sessionStorage.getItem("role") || "user";
+        const protocol = location.protocol === "https:" ? "wss" : "ws";
+        const wsUrl = `${protocol}://${location.host}/ws?roomId=${encodeURIComponent(room)}&role=${encodeURIComponent(role)}`;
 
-        ws=new WebSocket("ws://localhost:8080/ws?roomId="+room);
+        ws=new WebSocket(wsUrl);
 
         document.getElementById("main").style.display="block";
 
@@ -56,6 +59,10 @@
 
             if(e.data==="already"){
                 alert("你已经投过票了");
+                return;
+            }
+            if(e.data==="forbidden"){
+                alert("只有管理员可以开始或结束投票");
                 return;
             }
 

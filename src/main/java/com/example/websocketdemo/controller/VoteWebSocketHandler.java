@@ -25,9 +25,12 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
         sessions.add(session);
 
-        String roomId = getRoomId(session);
+        String roomId = getParam(session, "roomId", "default");
+        String role = getParam(session, "role", "user");
+
 
         session.getAttributes().put("roomId",roomId);
+        session.getAttributes().put("role", role);
 
         voteService.addUser(roomId);
 
@@ -85,6 +88,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
         if("start".equals(voteMessage.getCommand())){
 
             if(!"admin".equals(session.getAttributes().get("role"))){
+                session.sendMessage(new TextMessage("forbidden"));
                 return;
             }
 
@@ -93,6 +97,7 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
         if("stop".equals(voteMessage.getCommand())){
             if(!"admin".equals(session.getAttributes().get("role"))){
+                session.sendMessage(new TextMessage("forbidden"));
                 return;
             }
             voteService.stopVote(roomId);
@@ -132,18 +137,20 @@ public class VoteWebSocketHandler extends TextWebSocketHandler {
 
     }
 
-    private String getRoomId(WebSocketSession session){
+    private String getParam(WebSocketSession session, String key, String defaultValue){
 
         String query=session.getUri().getQuery();
 
-        if(query!=null && query.contains("roomId=")){
-
-            return query.split("=")[1];
-
+        if(query!=null) {
+            String[] pairs = query.split("&");
+            for (String pair : pairs) {
+                String[] kv = pair.split("=", 2);
+                if (kv.length == 2 && key.equals(kv[0])) {
+                    return kv[1];
+                }
+            }
         }
 
-        return "default";
-
-    }
-
+            return defaultValue;
+        }
 }
