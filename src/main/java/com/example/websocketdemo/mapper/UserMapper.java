@@ -1,14 +1,15 @@
 package com.example.websocketdemo.mapper;
 
-import com.example.websocketdemo.entity.User;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
+import com.example.websocketdemo.model.User;
+import org.apache.ibatis.annotations.*;
 
 @Mapper
 public interface UserMapper {
 
-    User findByUsername(@Param("username") String username);
+    @Select("select * from user where username=#{username}")
+    User findByUsername(String username);
 
-    void insertUser(User user);
+    @Insert("insert into user(username,password,role) values(#{username},#{password},'user')")
+    void insert(User user);
 
 }
