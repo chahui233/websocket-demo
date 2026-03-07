@@ -10,6 +10,7 @@
 
 <div style="position:absolute; top:12px; right:16px;">
     当前账号：<strong id="currentUser">未登录</strong>
+    <button onclick="logout()">注销</button>
 </div>
 
 <h2>WebSocket 实时投票系统</h2>
@@ -27,8 +28,13 @@
 
     <br><br>
 
-    <button onclick="startVote()">开始投票</button>
-    <button onclick="stopVote()">结束投票</button>
+    当前投票状态：
+    <strong id="voteStatus">投票已关闭</strong>
+
+    <br><br>
+
+    <button id="startBtn" onclick="startVote()">开始投票</button>
+    <button id="stopBtn" onclick="stopVote()">结束投票</button>
 
     <br><br>
 
@@ -68,6 +74,15 @@
             })
     }
 
+    function logout(){
+        fetch("/logout", {method: "POST"})
+            .then(r=>r.text())
+            .then(()=>{
+                sessionStorage.clear();
+                location = "login.html";
+            })
+    }
+
     function enterRoom(){
 
         let room=document.getElementById("room").value || "default";
@@ -102,8 +117,17 @@
             document.getElementById("c1").innerText=data.result[1]||0;
             document.getElementById("c2").innerText=data.result[2]||0;
             document.getElementById("c3").innerText=data.result[3]||0;
-
             document.getElementById("online").innerText=data.online;
+
+            if(data.voting){
+                document.getElementById("voteStatus").innerText = "投票已开始";
+                document.getElementById("startBtn").disabled = true;
+                document.getElementById("stopBtn").disabled = false;
+            }else{
+                document.getElementById("voteStatus").innerText = "投票已关闭";
+                document.getElementById("startBtn").disabled = false;
+                document.getElementById("stopBtn").disabled = true;
+            }
 
         };
 

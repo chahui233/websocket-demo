@@ -42,6 +42,12 @@ public class AuthController {
         return "exist";
     }
 
+    @PostMapping("/logout")
+    public String logout(HttpSession session){
+        session.invalidate();
+        return "success";
+    }
+
     @GetMapping("/me")
     public ResponseEntity<?> me(HttpSession session){
         User user = (User) session.getAttribute("user");
